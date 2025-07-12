@@ -1,0 +1,144 @@
+---
+title: "Introduction to trajLagged"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introduction to trajLagged}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(trajLagged)
+```
+
+# Introduction
+
+The `trajLagged` package provides functions for GAM-based smoothing and preprocessing of single-cell trajectory data, along with bootstrap analysis methods for statistical inference.
+
+## Key Features
+
+- **GAM-based smoothing**: Smooth trajectory data using Generalized Additive Models
+- **Flexible preprocessing**: Handle both binned and unbinned data
+- **Bootstrap analysis**: Perform statistical inference with confidence intervals
+- **Pseudotime weighting**: Use density-based weighting for more robust bootstrap sampling
+
+## Basic Usage
+
+### Data Preparation
+
+Before using the package functions, you need to ensure your data is in the correct format. The package expects single-cell experiment objects with pseudotime information.
+
+**Important**: You'll need to customize the `transform_data()` function based on your specific data structure.
+
+### Example Workflow
+
+```{r eval=FALSE}
+# Load your single-cell experiment objects
+# sce1 <- your_reference_data
+# sce2 <- your_target_data
+
+# Basic GAM preprocessing
+# result <- preprocess_gam(sce1, sce2, gene = "GENE1", binned = FALSE)
+
+# Complete pipeline analysis
+# analysis_result <- pipeline_gam(sce1, sce2, gene = "GENE1", binned = FALSE)
+
+# Bootstrap analysis with confidence intervals
+# bootstrap_result <- bootstrap_pipeline_gam(
+#   sce1, sce2, 
+#   gene = "GENE1", 
+#   binned = FALSE,
+#   n_bootstrap = 100,
+#   m_prop = 0.8
+# )
+```
+
+### Working with Data Frames
+
+If you already have your data in a data frame format with `time`, `reference`, and `target` columns, you can use the `*_from_df` functions:
+
+```{r eval=FALSE}
+# Create example data frame
+df <- data.frame(
+  time = seq(0, 1, length.out = 100),
+  reference = rnorm(100, mean = 2, sd = 0.5),
+  target = rnorm(100, mean = 2.5, sd = 0.5)
+)
+
+# Preprocess with GAM smoothing
+result <- preprocess_gam_from_df(df, binned = FALSE)
+
+# Run complete pipeline
+analysis_result <- pipeline_from_df(df, binned = FALSE)
+```
+
+## Understanding the Results
+
+### Bootstrap Analysis Output
+
+The `bootstrap_pipeline_gam()` function returns a comprehensive list with the following components:
+
+- `original_value`: The original analysis result
+- `bootstrap_values`: Vector of bootstrap results
+- `ci_lower`, `ci_upper`: 95% confidence interval bounds
+- `excludes_zero`: Boolean indicating if CI excludes zero
+- `bootstrap_mean`: Mean of bootstrap distribution
+- `bootstrap_sd`: Standard deviation of bootstrap distribution
+- `p_value_approx`: Approximate p-value
+- `m_size`, `n_total`: Sample size information
+
+```{r eval=FALSE}
+# Access bootstrap results
+print(paste("Original value:", bootstrap_result$original_value))
+print(paste("95% CI: [", bootstrap_result$ci_lower, ",", bootstrap_result$ci_upper, "]"))
+print(paste("Excludes zero:", bootstrap_result$excludes_zero))
+print(paste("Approximate p-value:", bootstrap_result$p_value_approx))
+```
+
+## Customization
+
+### Implementing transform_data()
+
+The `transform_data()` function is a placeholder that needs to be implemented based on your specific data structure. Here's an example implementation:
+
+```{r eval=FALSE}
+# Example implementation for SingleCellExperiment objects
+transform_data <- function(sce1, sce2, gene) {
+  # Extract pseudotime information
+  time <- sce1$pseudotime
+  
+  # Extract gene expression for the specified gene
+  reference <- assay(sce1, "logcounts")[gene, ]
+  target <- assay(sce2, "logcounts")[gene, ]
+  
+  return(data.frame(time = time, reference = reference, target = target))
+}
+```
+
+### Parameters
+
+- `binned`: Whether to bin the data into 100 time bins
+- `n_bootstrap`: Number of bootstrap iterations
+- `m_prop`: Proportion of data to sample in each bootstrap (m-out-of-n bootstrap)
+
+## Best Practices
+
+1. **Data Quality**: Ensure your pseudotime and gene expression data are properly normalized
+2. **Sample Size**: Use appropriate bootstrap sample sizes for your data
+3. **Validation**: Always check the bootstrap distribution for outliers or unusual patterns
+4. **Interpretation**: Consider the biological significance of your results alongside statistical significance
+
+## Troubleshooting
+
+Common issues and solutions:
+
+1. **transform_data error**: Implement the function based on your data structure
+2. **GAM fitting errors**: Check for sufficient data points and proper data formatting
+3. **Bootstrap failures**: Reduce `m_prop` or increase data quality checks 
