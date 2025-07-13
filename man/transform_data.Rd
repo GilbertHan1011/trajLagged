@@ -4,7 +4,7 @@
 \alias{transform_data}
 \title{Transform Data from Single-Cell Experiments}
 \usage{
-transform_data(sce1, sce2, gene)
+transform_data(sce1, sce2, gene, timeCol = "pseudotime", assay = "log_counts")
 }
 \arguments{
 \item{sce1}{Single-cell experiment object 1 (reference)}
@@ -12,6 +12,10 @@ transform_data(sce1, sce2, gene)
 \item{sce2}{Single-cell experiment object 2 (target)}
 
 \item{gene}{Character string specifying the gene name}
+
+\item{timeCol}{Character string specifying the column name for time}
+
+\item{assay}{Character string specifying the assay to use}
 }
 \value{
 Data frame with time, reference, and target columns

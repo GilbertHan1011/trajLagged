@@ -26,7 +26,7 @@ Main functions include:
 }
 }
 \author{
-\strong{Maintainer}: Your Name \email{your.email@example.com}
+\strong{Maintainer}: Gilbert Han \email{GilbertHan1011@gmail.com}
 
 }
 \keyword{internal}

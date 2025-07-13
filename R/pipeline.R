@@ -28,3 +28,136 @@ pipeline_from_df <- function(df, binned = FALSE) {
   df_binned_gam <- preprocess_gam_from_df(df, binned = binned)
   get_value_gam(df_binned_gam)
 } 
+
+#' Run the GAM pipeline for a list of genes
+#'
+#' @param sce1 Single-cell experiment object 1 (reference)
+#' @param sce2 Single-cell experiment object 2 (target)
+#' @param geneList List of gene names
+#' @param binned Logical, whether to bin the data (default: FALSE)
+#' @param bootstrap Logical, whether to bootstrap the data (default: TRUE)
+#' @param n_bootstrap Number of bootstrap samples (default: 100)
+#' @param m_prop Proportion of data to sample for bootstrap (default: 0.5)
+#' @param n_cores Number of cores to use for parallel processing (default: 1)
+#' @return List of values, arrays, and p-values for each gene
+#' @importFrom parallel mclapply detectCores
+#' @export
+run_whole_gene <- function(sce1, sce2, geneList, binned = FALSE, bootstrap = TRUE, 
+                          n_bootstrap = 100, m_prop = 0.5, n_cores = 1) {
+  
+  # Validate inputs
+  if (!is.character(geneList) || length(geneList) == 0) {
+    stop("geneList must be a non-empty character vector")
+  }
+  
+  # Set up parallel processing
+  if (n_cores == 1) {
+    n_cores <- 1  # Sequential processing
+  } else if (n_cores <= 0) {
+    n_cores <- max(1, detectCores() - 1)  # Use all but one core
+  }
+  
+  # Progress tracking function
+  progress_msg <- function(i, total) {
+    cat(sprintf("Processing gene %d of %d (%s)\n", i, total, geneList[i]))
+  }
+  
+  # Define worker function for processing individual genes
+  process_gene <- function(i) {
+    gene <- geneList[i]
+    
+    # Progress reporting (only in sequential mode to avoid conflicts)
+    if (n_cores == 1) {
+      progress_msg(i, length(geneList))
+    }
+    
+    tryCatch({
+      if (bootstrap) {
+        res <- bootstrap_pipeline_gam(sce1, sce2, gene, binned = binned, 
+                                    n_bootstrap = n_bootstrap, m_prop = m_prop)
+        list(
+          value = res$bootstrap_mean,
+          bootstrap_values = res$bootstrap_values,
+          p_value = res$p_value_approx,
+          success = TRUE
+        )
+      } else {
+        list(
+          value = pipeline_gam(sce1, sce2, gene, binned = binned),
+          success = TRUE
+        )
+      }
+    }, error = function(e) {
+      warning(sprintf("Error processing gene %s: %s", gene, e$message))
+      list(
+        value = NA,
+        bootstrap_values = if (bootstrap) numeric(0) else NULL,
+        p_value = if (bootstrap) NA else NULL,
+        success = FALSE
+      )
+    })
+  }
+  
+  # Run processing (parallel or sequential)
+  if (n_cores > 1) {
+    cat(sprintf("Processing %d genes using %d cores...\n", length(geneList), n_cores))
+    results <- mclapply(seq_along(geneList), process_gene, mc.cores = n_cores)
+  } else {
+    results <- lapply(seq_along(geneList), process_gene)
+  }
+  
+  # Extract results
+  valueArr <- sapply(results, function(x) x$value)
+  names(valueArr) <- geneList
+  
+  if (bootstrap) {
+    # Extract bootstrap arrays and p-values
+    arrayList <- lapply(results, function(x) x$bootstrap_values)
+    pvalueArr <- sapply(results, function(x) x$p_value)
+    names(pvalueArr) <- geneList
+    
+    # Convert bootstrap results to data frame
+    # Handle cases where some genes failed or have different lengths
+    valid_arrays <- arrayList[sapply(arrayList, function(x) length(x) > 0)]
+    
+    if (length(valid_arrays) > 0) {
+      max_len <- max(sapply(valid_arrays, length))
+      
+      # Pad arrays to same length and combine
+      arrayMat <- do.call(cbind, lapply(seq_along(geneList), function(i) {
+        arr <- arrayList[[i]]
+        if (length(arr) == 0) {
+          rep(NA, max_len)
+        } else {
+          c(arr, rep(NA, max_len - length(arr)))
+        }
+      }))
+      
+      arrayDf <- as.data.frame(arrayMat)
+      colnames(arrayDf) <- geneList
+    } else {
+      # All genes failed - create empty data frame
+      arrayDf <- data.frame(matrix(NA, nrow = 0, ncol = length(geneList)))
+      colnames(arrayDf) <- geneList
+    }
+    
+    # Report success rate
+    success_rate <- mean(sapply(results, function(x) x$success))
+    cat(sprintf("Processing completed. Success rate: %.1f%%\n", success_rate * 100))
+    
+    return(list(
+      valueArr = valueArr, 
+      arrayDf = arrayDf, 
+      pvalueArr = pvalueArr,
+      success_rate = success_rate
+    ))
+  } else {
+    success_rate <- mean(sapply(results, function(x) x$success))
+    cat(sprintf("Processing completed. Success rate: %.1f%%\n", success_rate * 100))
+    
+    return(list(
+      valueArr = valueArr,
+      success_rate = success_rate
+    ))
+  }
+}
