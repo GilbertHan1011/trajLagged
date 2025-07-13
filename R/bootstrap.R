@@ -11,10 +11,10 @@
 #' @return List containing bootstrap results and statistical measures
 #' @importFrom stats quantile sd
 #' @export
-bootstrap_pipeline_gam <- function(sce1, sce2, gene, binned = FALSE, n_bootstrap = 100, m_prop = 0.8) {
+bootstrap_pipeline_gam <- function(sce1, sce2, gene, peak = NULL, assay = "log_counts", assay2 = NULL, binned = FALSE, n_bootstrap = 100, m_prop = 0.8) {
   
   # 1. Run the slow data extraction ONCE before the loop
-  df_full <- transform_data(sce1, sce2, gene)
+  df_full <- transform_data(sce1, sce2, gene, peak,assay = assay, assay2 = assay2)
   
   # Calculate pseudotime density weights
   weights <- calculate_pseudotime_weights(sce1)

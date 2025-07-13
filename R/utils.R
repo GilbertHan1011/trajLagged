@@ -10,11 +10,21 @@
 #' @param timeCol Character string specifying the column name for time
 #' @return Data frame with time, reference, and target columns
 #' @export
-transform_data <- function(sce1, sce2, gene,timeCol = "pseudotime",assay = "log_counts") {
+transform_data <- function(sce1, sce2, gene, peak = NULL,timeCol = "pseudotime",assay = "log_counts", assay2 = NULL) {
   pseudotime = sce1[[timeCol]]
   sce1Gene = sce1[gene]
-  sce2Gene = sce2[gene]
-  gene1 = sce1[gene]@assays@data[[assay]] %>% as.numeric()
-  gene2 = sce2[gene]@assays@data[[assay]] %>% as.numeric()
+  if (is.null(assay2)) {
+    assay2 = assay
+  }
+  gene1 = as.numeric(sce1Gene@assays@data[[assay]])
+  if (is.null(peak)) {
+    region = gene
+  }
+  else {
+    region = peak
+  }
+  sce2Gene = sce2[region]
+  gene2 = as.numeric(sce2Gene@assays@data[[assay2]])
   df = data.frame(time = pseudotime, reference = gene1, target = gene2)
+  return(df)
 } 

@@ -8,10 +8,9 @@
 #' @param binned Logical, whether to bin the data (default: FALSE)
 #' @return Numeric value representing the analysis result
 #' @export
-pipeline_gam <- function(sce1, sce2, gene, binned = FALSE) {
+pipeline_gam <- function(sce1, sce2, gene, peak = NULL, binned = FALSE) {
   # Use the new preprocessing function with GAM
-  df_binned_gam <- preprocess_gam(sce1, sce2, gene, binned = binned)
-  
+  df_binned_gam <- preprocess_gam(sce1, sce2, gene, peak, binned = binned)
   # Use the updated get_value function
   get_value_gam(df_binned_gam)
 }
@@ -42,14 +41,16 @@ pipeline_from_df <- function(df, binned = FALSE) {
 #' @return List of values, arrays, and p-values for each gene
 #' @importFrom parallel mclapply detectCores
 #' @export
-run_whole_gene <- function(sce1, sce2, geneList, binned = FALSE, bootstrap = TRUE, 
+run_whole_gene <- function(sce1, sce2, geneList, peakList = NULL, binned = FALSE, bootstrap = TRUE, 
                           n_bootstrap = 100, m_prop = 0.5, n_cores = 1) {
   
   # Validate inputs
   if (!is.character(geneList) || length(geneList) == 0) {
     stop("geneList must be a non-empty character vector")
   }
-  
+  if (!is.null(peakList) && length(peakList) != length(geneList)) {
+    stop("peakList must be the same length as geneList")
+  }
   # Set up parallel processing
   if (n_cores == 1) {
     n_cores <- 1  # Sequential processing
@@ -65,6 +66,12 @@ run_whole_gene <- function(sce1, sce2, geneList, binned = FALSE, bootstrap = TRU
   # Define worker function for processing individual genes
   process_gene <- function(i) {
     gene <- geneList[i]
+    if (!is.null(peakList)) {
+      peak <- peakList[i]
+    }
+    else {
+      peak <- NULL
+    }
     
     # Progress reporting (only in sequential mode to avoid conflicts)
     if (n_cores == 1) {
@@ -73,7 +80,7 @@ run_whole_gene <- function(sce1, sce2, geneList, binned = FALSE, bootstrap = TRU
     
     tryCatch({
       if (bootstrap) {
-        res <- bootstrap_pipeline_gam(sce1, sce2, gene, binned = binned, 
+        res <- bootstrap_pipeline_gam(sce1, sce2, gene, peak, binned = binned, 
                                     n_bootstrap = n_bootstrap, m_prop = m_prop)
         list(
           value = res$bootstrap_mean,
@@ -105,7 +112,12 @@ run_whole_gene <- function(sce1, sce2, geneList, binned = FALSE, bootstrap = TRU
   } else {
     results <- lapply(seq_along(geneList), process_gene)
   }
-  
+  if (is.null(peakList)) {
+    name = geneList
+  }
+  else {
+    name = paste0(geneList, "_", peakList)
+  }
   # Extract results
   valueArr <- sapply(results, function(x) x$value)
   names(valueArr) <- geneList

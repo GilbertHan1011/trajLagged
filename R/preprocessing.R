@@ -12,9 +12,9 @@
 #' @importFrom dplyr %>% mutate group_by summarize ungroup
 #' @importFrom stats predict
 #' @export
-preprocess_gam <- function(sce1, sce2, gene, binned = FALSE) {
+preprocess_gam <- function(sce1, sce2, gene, peak = NULL, assay = "log_counts", assay2 = NULL, binned = FALSE) {
   # Original data transformation and binning
-  df <- transform_data(sce1, sce2, gene)
+  df <- transform_data(sce1, sce2, gene, peak, assay = assay, assay2 = assay2)
   
   if (binned) {
     df_binned <- df %>%
