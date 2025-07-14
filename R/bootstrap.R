@@ -18,6 +18,7 @@
 #'   perform (default: "summary")
 #' @param flatness_alpha Numeric, significance level for flatness testing
 #'   (default: 0.05)
+#' @param family GAM family specification (default: "auto")
 #' @return List containing bootstrap results and statistical measures
 #' @importFrom stats quantile sd
 #' @export
@@ -26,16 +27,13 @@ bootstrap_pipeline_gam <- function(sce1, sce2, gene, peak = NULL,
                                   binned = FALSE, n_bootstrap = 100,
                                   m_prop = 0.8, test_flatness = FALSE,
                                   flatness_method = "all",
-                                  flatness_alpha = 0.05) {
+                                  flatness_alpha = 0.05, family = "nb") {
   
   # 1. Run the slow data extraction ONCE before the loop
   df_full <- transform_data(sce1, sce2, gene, peak,assay = assay, assay2 = assay2)
   
   # Calculate pseudotime density weights
   weights <- calculate_pseudotime_weights(sce1)
-  
-  # Original result
-  original_result <- pipeline_from_df(df_full, binned = binned)
 
   # GAM flatness testing on original data (if requested)
   flatness_results <- NULL
@@ -59,7 +57,7 @@ bootstrap_pipeline_gam <- function(sce1, sce2, gene, peak = NULL,
     
     # Run the FASTER pipeline version that starts from a data frame
     tryCatch({
-      pipeline_from_df(df_boot, binned = binned)
+      pipeline_from_df(df_boot, binned = binned, family = family)
     }, error = function(e) NA)
   })
   
@@ -74,7 +72,6 @@ bootstrap_pipeline_gam <- function(sce1, sce2, gene, peak = NULL,
   excludes_zero <- ci_lower > 0 | ci_upper < 0
   
   result_list <- list(
-    original_value = original_result,
     bootstrap_values = bootstrap_results,
     ci_lower = ci_lower,
     ci_upper = ci_upper,

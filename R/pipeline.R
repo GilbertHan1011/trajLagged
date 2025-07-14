@@ -1,32 +1,41 @@
 #' Complete GAM Pipeline
 #'
-#' Run the complete GAM preprocessing and analysis pipeline.
+#' Run the complete GAM preprocessing and analysis pipeline with appropriate
+#' error distributions for gene expression data.
 #'
 #' @param sce1 Single-cell experiment object 1 (reference)
 #' @param sce2 Single-cell experiment object 2 (target)
 #' @param gene Character string specifying the gene name
+#' @param peak Optional peak information
+#' @param assay Assay name for sce1 (default: "log_counts")
+#' @param assay2 Assay name for sce2 (default: NULL, uses same as assay)
 #' @param binned Logical, whether to bin the data (default: FALSE)
+#' @param family GAM family specification (default: "auto")
 #' @return Numeric value representing the analysis result
 #' @export
-pipeline_gam <- function(sce1, sce2, gene, peak = NULL, binned = FALSE) {
-  # Use the new preprocessing function with GAM
-  df_binned_gam <- preprocess_gam(sce1, sce2, gene, peak, binned = binned)
+pipeline_gam <- function(sce1, sce2, gene, peak = NULL, assay = "log_counts",
+                        assay2 = NULL, binned = FALSE, family = "nb") {
+  # Use the new preprocessing function with GAM and family selection
+  df_binned_gam <- preprocess_gam(sce1, sce2, gene, peak, assay, assay2,
+                                 binned = binned, family = family)
   # Use the updated get_value function
   get_value_gam(df_binned_gam)
 }
 
 #' Pipeline from Data Frame
 #'
-#' Run the GAM pipeline starting from a data frame.
+#' Run the GAM pipeline starting from a data frame with appropriate
+#' error distributions.
 #'
 #' @param df Data frame containing time, reference, and target columns
 #' @param binned Logical, whether to bin the data (default: FALSE)
+#' @param family GAM family specification (default: "auto")
 #' @return Numeric value representing the analysis result
 #' @export
-pipeline_from_df <- function(df, binned = FALSE) {
-  df_binned_gam <- preprocess_gam_from_df(df, binned = binned)
+pipeline_from_df <- function(df, binned = FALSE, family = "nb") {
+  df_binned_gam <- preprocess_gam_from_df(df, binned = binned, family = family)
   get_value_gam(df_binned_gam)
-} 
+}
 
 #' Run the GAM pipeline for a list of genes
 #'

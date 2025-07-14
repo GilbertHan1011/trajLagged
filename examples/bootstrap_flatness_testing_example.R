@@ -32,7 +32,6 @@ cat("-------------------------------------------------------\n")
 
 # For demonstration, let's show the structure of what you would get:
 cat("Expected structure of bootstrap results with flatness testing:\n")
-cat("$original_value        - Original pipeline result\n")
 cat("$bootstrap_values      - Vector of bootstrap results\n")
 cat("$ci_lower, $ci_upper   - Confidence intervals\n")
 cat("$excludes_zero         - Whether CI excludes zero\n")

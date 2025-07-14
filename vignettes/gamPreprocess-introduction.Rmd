@@ -85,7 +85,6 @@ analysis_result <- pipeline_from_df(df, binned = FALSE)
 
 The `bootstrap_pipeline_gam()` function returns a comprehensive list with the following components:
 
-- `original_value`: The original analysis result
 - `bootstrap_values`: Vector of bootstrap results
 - `ci_lower`, `ci_upper`: 95% confidence interval bounds
 - `excludes_zero`: Boolean indicating if CI excludes zero
@@ -96,7 +95,6 @@ The `bootstrap_pipeline_gam()` function returns a comprehensive list with the fo
 
 ```{r eval=FALSE}
 # Access bootstrap results
-print(paste("Original value:", bootstrap_result$original_value))
 print(paste("95% CI: [", bootstrap_result$ci_lower, ",", bootstrap_result$ci_upper, "]"))
 print(paste("Excludes zero:", bootstrap_result$excludes_zero))
 print(paste("Approximate p-value:", bootstrap_result$p_value_approx))

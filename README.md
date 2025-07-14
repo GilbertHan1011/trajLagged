@@ -92,7 +92,6 @@ whole_gene_results <- run_whole_gene(
 )
 
 # Access results
-print(bootstrap_result$original_value)
 print(bootstrap_result$ci_lower)
 print(bootstrap_result$ci_upper)
 print(bootstrap_result$excludes_zero)
