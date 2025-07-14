@@ -1,0 +1,287 @@
+---
+title: "Statistical Testing for GAM Flatness in trajLagged"
+author: "trajLagged Package"
+date: "`r Sys.Date()`"
+output: 
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 3
+vignette: >
+  %\VignetteIndexEntry{Statistical Testing for GAM Flatness in trajLagged}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 5
+)
+```
+
+# Introduction
+
+This vignette describes comprehensive methods for testing whether a Generalized Additive Model (GAM) fitted with the `mgcv` package represents a "flat" (non-significant) relationship. In the context of single-cell trajectory analysis, determining whether gene expression changes significantly along pseudotime is crucial for identifying dynamic genes.
+
+## What Does "Flat" Mean?
+
+A "flat" GAM indicates that:
+- The smooth term(s) do not significantly deviate from zero
+- The relationship between predictor and response is essentially constant
+- The GAM does not provide a better fit than a simple intercept-only model
+
+# Available Testing Methods
+
+The `trajLagged` package provides four complementary statistical tests for GAM flatness:
+
+## Method 1: Summary-based Test (Approximate F-test)
+
+This is the simplest and most commonly used method, extracting p-values directly from the GAM summary.
+
+**Advantages:**
+- Fast and straightforward
+- Built into mgcv
+- Well-established statistical theory
+
+**Limitations:**
+- May be less powerful for complex smooth terms
+- Relies on asymptotic approximations
+
+```{r eval=FALSE}
+# Basic usage
+gam_model <- gam(y ~ s(x), data = your_data)
+result <- test_gam_flatness(gam_model, method = "summary")
+```
+
+## Method 2: Advanced Wald Test with Contrasts
+
+This method manually constructs contrasts between predicted values at different points along the curve and tests whether these differences are significantly different from zero.
+
+**Advantages:**
+- More flexible and customizable
+- Can test specific hypotheses about curve shape
+- Provides detailed control over testing procedure
+
+**Limitations:**
+- More computationally intensive
+- Requires careful handling of matrix operations
+- May be sensitive to the number of contrast points
+
+**Mathematical Foundation:**
+The test constructs a contrast matrix L that compares predicted values at consecutive points:
+- L β represents the differences between consecutive predictions
+- The Wald statistic is: W = (Lβ)ᵀ (LVₚLᵀ)⁻¹ (Lβ)
+- Under H₀ (flatness), W ~ χ²(df)
+
+```{r eval=FALSE}
+# Wald contrasts test with custom number of points
+result <- test_gam_flatness(gam_model, method = "wald_contrasts", n_points = 100)
+```
+
+## Method 3: Likelihood Ratio Test
+
+Compares the fitted GAM with a null model (intercept only) using likelihood ratio statistics.
+
+**Advantages:**
+- Theoretically well-founded
+- Compares nested models directly
+- Good power for detecting non-linearity
+
+**Limitations:**
+- Requires fitting additional models
+- May be sensitive to model specification
+
+**Mathematical Foundation:**
+- LR = 2(log L(GAM) - log L(null))
+- Under H₀, LR ~ χ²(df_difference)
+
+```{r eval=FALSE}
+# Likelihood ratio test
+result <- test_gam_flatness(gam_model, method = "likelihood_ratio")
+```
+
+## Method 4: F-test for Smooth Terms
+
+Extracts F-statistics specifically for smooth terms from the GAM summary.
+
+**Advantages:**
+- Focuses specifically on smooth terms
+- Provides F-statistics in addition to p-values
+- Good for models with multiple smooth terms
+
+```{r eval=FALSE}
+# F-test for smooth terms
+result <- test_gam_flatness(gam_model, method = "f_test")
+```
+
+# Comprehensive Testing Strategy
+
+For robust inference, we recommend using multiple methods:
+
+```{r eval=FALSE}
+# Run all tests simultaneously
+all_results <- test_gam_flatness(gam_model, method = "all")
+print(all_results$overall_interpretation)
+```
+
+The overall interpretation considers the consensus across all methods:
+- **Strong evidence for flatness**: All tests suggest flatness
+- **Strong evidence against flatness**: All tests reject flatness
+- **Mixed evidence**: Tests disagree, requiring careful interpretation
+
+# Integration with trajLagged Pipeline
+
+## Testing Individual Trajectories
+
+```{r eval=FALSE}
+# Test flatness for both reference and target trajectories
+trajectory_results <- test_trajectory_flatness(
+  sce1 = sce1_object,
+  sce2 = sce2_object,
+  gene = "GENE_NAME",
+  test_both = TRUE,
+  method = "all",
+  alpha = 0.05
+)
+
+# Access results
+ref_flat <- trajectory_results$reference$flatness_tests$overall_interpretation
+target_flat <- trajectory_results$target$flatness_tests$overall_interpretation
+```
+
+## Batch Testing Multiple Genes
+
+```{r eval=FALSE}
+# Test multiple genes efficiently
+gene_list <- c("GENE1", "GENE2", "GENE3")
+batch_results <- lapply(gene_list, function(gene) {
+  test_trajectory_flatness(sce1, sce2, gene, method = "summary")
+})
+names(batch_results) <- gene_list
+```
+
+# Visualization and Diagnostics
+
+The package provides comprehensive diagnostic plots:
+
+```{r eval=FALSE}
+# Create diagnostic plots
+plot_gam_flatness(
+  gam_model, 
+  flatness_results, 
+  main_title = "GAM Flatness Diagnostics"
+)
+```
+
+The diagnostic plot includes:
+1. **GAM smooth with confidence intervals**: Visual assessment of flatness
+2. **Residuals vs fitted**: Check model assumptions
+3. **Q-Q plot**: Assess normality of residuals
+4. **Test results summary**: Numerical results from all tests
+
+# Practical Recommendations
+
+## Choosing Significance Levels
+
+- **α = 0.05**: Standard choice for most applications
+- **α = 0.01**: More conservative, reduces false positives
+- **α = 0.10**: More liberal, increases sensitivity
+
+```{r eval=FALSE}
+# Test with different significance levels
+for (alpha in c(0.01, 0.05, 0.10)) {
+  result <- test_gam_flatness(gam_model, alpha = alpha)
+  cat("Alpha =", alpha, "- Is flat:", result$summary_test$is_flat, "\n")
+}
+```
+
+## Method Selection Guidelines
+
+- **For routine screening**: Use `method = "summary"` for speed
+- **For publication-quality analysis**: Use `method = "all"` for robustness
+- **For custom hypotheses**: Use `method = "wald_contrasts"` with specific contrasts
+- **For model comparison**: Use `method = "likelihood_ratio"`
+
+## Handling Edge Cases
+
+1. **Very noisy data**: Consider increasing smoothing parameters
+2. **Small sample sizes**: Use more conservative significance levels
+3. **Multiple testing**: Apply appropriate corrections (e.g., Bonferroni, FDR)
+
+# Example Workflow
+
+```{r eval=FALSE}
+library(trajLagged)
+
+# 1. Load your data
+# sce1 <- your_reference_data
+# sce2 <- your_target_data
+
+# 2. Test a single gene
+gene_result <- test_trajectory_flatness(
+  sce1, sce2, "YOUR_GENE",
+  method = "all",
+  alpha = 0.05
+)
+
+# 3. Examine results
+print(gene_result$reference$flatness_tests$overall_interpretation)
+print(gene_result$target$flatness_tests$overall_interpretation)
+
+# 4. Create diagnostic plots
+plot_gam_flatness(
+  gene_result$reference$gam_model,
+  gene_result$reference$flatness_tests,
+  "Reference Trajectory"
+)
+
+# 5. Test multiple genes
+gene_list <- c("GENE1", "GENE2", "GENE3")
+batch_results <- lapply(gene_list, function(gene) {
+  test_trajectory_flatness(sce1, sce2, gene, method = "summary")
+})
+
+# 6. Summarize results
+flat_genes <- sapply(batch_results, function(x) {
+  x$reference$flatness_tests$summary_test$is_flat
+})
+cat("Flat genes:", sum(flat_genes, na.rm = TRUE), "out of", length(gene_list))
+```
+
+# Statistical Considerations
+
+## Multiple Testing Correction
+
+When testing many genes, apply appropriate corrections:
+
+```{r eval=FALSE}
+# Extract p-values
+p_values <- sapply(batch_results, function(x) {
+  x$reference$flatness_tests$summary_test$p_values
+})
+
+# Apply FDR correction
+adjusted_p <- p.adjust(p_values, method = "fdr")
+significant_genes <- names(adjusted_p)[adjusted_p < 0.05]
+```
+
+## Power Analysis
+
+The power to detect non-flatness depends on:
+- Sample size
+- Effect size (magnitude of non-linearity)
+- Noise level
+- Smoothing parameters
+
+## Model Assumptions
+
+Ensure your GAM meets standard assumptions:
+- Independence of observations
+- Appropriate error distribution
+- Adequate sample size for smooth estimation
+
+# Conclusion
+
+The GAM flatness testing framework in `trajLagged` provides robust, multi-method approaches for determining whether gene expression trajectories show significant temporal dynamics. By combining multiple statistical tests with comprehensive diagnostics, researchers can make well-informed decisions about which genes exhibit meaningful changes along developmental trajectories.

@@ -24,6 +24,7 @@ devtools::install_github("your-username/trajLagged")
 - **Flexible preprocessing**: Handle both binned and unbinned data
 - **Bootstrap analysis**: Perform statistical inference with confidence intervals
 - **Pseudotime weighting**: Use density-based weighting for more robust bootstrap sampling
+- **GAM flatness testing**: Statistical tests to determine if trajectories are flat
 - **Efficient implementation**: Optimized for performance with large datasets
 
 ## Main Functions
@@ -39,6 +40,12 @@ devtools::install_github("your-username/trajLagged")
 - `sumWeight()`: Calculate weighted sums with normalization
 - `get_value_gam()`: Get analysis values from GAM results
 - `calculate_pseudotime_weights()`: Calculate pseudotime density weights
+
+### GAM Flatness Testing Functions
+
+- `test_gam_flatness()`: Comprehensive statistical tests for GAM flatness
+- `test_trajectory_flatness()`: Test flatness for trajectory GAMs
+- `plot_gam_flatness()`: Diagnostic plots for GAM flatness testing
 
 ### Pipeline Functions
 
@@ -59,11 +66,29 @@ analysis_result <- pipeline_gam(sce1, sce2, gene = "GENE1", binned = FALSE)
 
 # Bootstrap analysis with confidence intervals
 bootstrap_result <- bootstrap_pipeline_gam(
-  sce1, sce2, 
-  gene = "GENE1", 
+  sce1, sce2,
+  gene = "GENE1",
   binned = FALSE,
   n_bootstrap = 100,
   m_prop = 0.8
+)
+
+# Bootstrap analysis with GAM flatness testing
+bootstrap_with_flatness <- bootstrap_pipeline_gam(
+  sce1, sce2,
+  gene = "GENE1",
+  n_bootstrap = 100,
+  test_flatness = TRUE,
+  flatness_method = "all"
+)
+
+# Whole gene analysis with flatness testing
+whole_gene_results <- run_whole_gene(
+  sce1, sce2,
+  geneList = c("GENE1", "GENE2", "GENE3"),
+  bootstrap = TRUE,
+  test_flatness = TRUE,
+  flatness_method = "summary"
 )
 
 # Access results
@@ -71,6 +96,11 @@ print(bootstrap_result$original_value)
 print(bootstrap_result$ci_lower)
 print(bootstrap_result$ci_upper)
 print(bootstrap_result$excludes_zero)
+
+# Access flatness test results
+if (!is.null(bootstrap_with_flatness$flatness_tests)) {
+  print(bootstrap_with_flatness$flatness_tests)
+}
 ```
 
 ## Data Requirements
